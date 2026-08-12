@@ -1,0 +1,105 @@
+# 解答（課題#4「CI に組み込む」）: baseline の cloudbuild.yaml に Trivy スキャンを組み込んだ版。
+# push トリガー（<repo>-push）がこの定義を実行するため、push のたびに自動でスキャン結果が出力される。
+# 配置方針:
+#   - 依存スキャン（SCA / fs）は push の前 … 発展課題でゲート化（--exit-code 1）した際に「公開前に止める」ため。
+#   - イメージスキャン・SBOM は push の後 … push 済みイメージを AR から pull して検査する（scan.yaml と同一方式）。
+# 初期段階は全ステップ --exit-code 0（レポートのみ・ビルドは落とさない）。ゲート化は --exit-code 1 に変える。
+substitutions:
+  _REGION: asia-northeast1
+  _REPO: flowpay
+  _NPM_REGISTRY: ''   # npm レジストリURL（frontend の依存解決に使用する。環境固有）
+  _DEPLOY_TOPIC: ''   # 設定時、ビルド後にこのトピックへ publish し deploy トリガーを起動する（暫定のイベント配線）
+options:
+  logging: CLOUD_LOGGING_ONLY
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest'
+steps:
+  - id: build-backend
+    name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest', 'backend']
+  # _NPM_REGISTRY が指定された場合のみ frontend/.npmrc を生成（環境固有URLはコミットせず注入）
+  - id: npmrc
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if [ -n "${_NPM_REGISTRY}" ]; then
+          printf 'registry=%s\n' "${_NPM_REGISTRY}" > frontend/.npmrc
+          echo "wrote frontend/.npmrc -> ${_NPM_REGISTRY}"
+        else
+          echo "WARN: _NPM_REGISTRY 未設定。expense-format を解決できずビルド失敗の可能性。"
+        fi
+  # frontend の依存を install し、node_modules を用意してからイメージをビルドする。
+  - id: frontend-deps
+    name: node:22-slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        cd frontend
+        npm install --omit=dev --no-audit --no-fund
+  - id: build-frontend
+    name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest', 'frontend']
+
+  # === 依存スキャン（SCA）: マニフェスト（go.mod / package.json）を解析。レジストリ認証不要・イメージ不要 ===
+  # push の前に置くことで、発展課題のゲート化（--exit-code 1）時に「AR へ公開する前」に止められる。
+  - id: scan-deps-backend
+    name: aquasec/trivy
+    args: ['fs', '--scanners', 'vuln', '--severity', 'HIGH,CRITICAL', '--exit-code', '0', 'backend']
+  - id: scan-deps-frontend
+    name: aquasec/trivy
+    args: ['fs', '--scanners', 'vuln', '--severity', 'HIGH,CRITICAL', '--exit-code', '0', 'frontend']
+
+  # イメージを AR に push してから通知する（images: は末尾で push されるため、順序を確実にする）。
+  - id: push-images
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker push ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest
+        docker push ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest
+
+  # Trivy が AR からイメージを pull するための docker 認証（ビルド SA のトークン）
+  - id: auth
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -e
+        mkdir -p /workspace/.docker
+        TOKEN=$$(gcloud auth print-access-token)
+        AUTH=$$(printf 'oauth2accesstoken:%s' "$$TOKEN" | base64 -w0)
+        printf '{"auths":{"%s-docker.pkg.dev":{"auth":"%s"}}}' "${_REGION}" "$$AUTH" > /workspace/.docker/config.json
+
+  # === イメージスキャン（OSパッケージ＋言語依存）: distroless(backend) と node:22-slim(frontend) の差を観察 ===
+  - id: scan-image-backend
+    name: aquasec/trivy
+    env: ['DOCKER_CONFIG=/workspace/.docker']
+    args: ['image', '--severity', 'HIGH,CRITICAL', '--exit-code', '0', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest']
+  - id: scan-image-frontend
+    name: aquasec/trivy
+    env: ['DOCKER_CONFIG=/workspace/.docker']
+    args: ['image', '--severity', 'HIGH,CRITICAL', '--exit-code', '0', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest']
+
+  # === SBOM（CycloneDX）生成 === /workspace への出力はビルド終了で破棄される（保存は発展課題: artifacts / GCS）
+  - id: sbom-frontend
+    name: aquasec/trivy
+    env: ['DOCKER_CONFIG=/workspace/.docker']
+    args: ['image', '--format', 'cyclonedx', '--output', '/workspace/frontend.sbom.cdx.json', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest']
+
+  # _DEPLOY_TOPIC が設定されていれば、トピックへ publish して deploy トリガーを起動する。
+  - id: notify-deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if [ -n "${_DEPLOY_TOPIC}" ]; then
+          gcloud pubsub topics publish "${_DEPLOY_TOPIC}" --message='{"event":"images-pushed"}'
+          echo "published to ${_DEPLOY_TOPIC}"
+        fi

@@ -1,0 +1,30 @@
+# 署名の検証。期待する身元（署名SAのメール）とissuer（Google）で検証する。
+# 実行: gcloud builds submit --no-source --config .../cloudbuild.verify.yaml
+substitutions:
+  _REGION: asia-northeast1
+  _REPO: flowpay
+  _IMAGE: backend
+  _SIGN_SA: flowpay-build-sa
+options:
+  logging: CLOUD_LOGGING_ONLY
+steps:
+  - id: verify
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    env: ['HOME=/tmp']
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        curl -sSL -o /usr/local/bin/cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+        chmod +x /usr/local/bin/cosign
+        mkdir -p /tmp/.docker
+        AUTH=$$(printf 'oauth2accesstoken:%s' "$$(gcloud auth print-access-token)" | base64 -w0)
+        printf '{"auths":{"%s-docker.pkg.dev":{"auth":"%s"}}}' "${_REGION}" "$$AUTH" > /tmp/.docker/config.json
+        export DOCKER_CONFIG=/tmp/.docker
+        IMG=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}
+        DIGEST=$$(gcloud artifacts docker images describe $$IMG:latest --format='value(image_summary.digest)')
+        cosign verify \
+          --certificate-identity=${_SIGN_SA}@$PROJECT_ID.iam.gserviceaccount.com \
+          --certificate-oidc-issuer=https://accounts.google.com \
+          "$$IMG@$$DIGEST"

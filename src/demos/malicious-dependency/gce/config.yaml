@@ -1,0 +1,23 @@
+# GCE VM 上の Verdaccio 設定（「公開npmの代役」・演習環境用）。
+# expense-format はローカル専用（publish 済みのバージョンが権威）。それ以外は npmjs へプロキシ。
+# 認証情報を持たせない方針のため、expense-format は匿名 publish/read を許可する（アクセス制限はVMのファイアウォールで行う）。
+listen: 0.0.0.0:4873
+storage: /verdaccio/storage
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+packages:
+  'expense-format':
+    access: $all
+    publish: $all
+    unpublish: $all
+    # proxy を書かない＝ローカルのみ
+  '@*/*':
+    access: $all
+    publish: $all
+    proxy: npmjs
+  '**':
+    access: $all
+    publish: $all
+    proxy: npmjs
+log: { type: stdout, format: pretty, level: warn }

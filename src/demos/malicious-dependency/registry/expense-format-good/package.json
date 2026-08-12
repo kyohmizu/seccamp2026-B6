@@ -1,0 +1,8 @@
+{
+  "name": "expense-format",
+  "version": "1.0.0",
+  "description": "経費金額を日本円表記にする小さなユーティリティ",
+  "main": "index.js",
+  "license": "MIT",
+  "files": ["index.js"]
+}

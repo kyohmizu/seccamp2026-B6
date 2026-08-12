@@ -1,0 +1,4 @@
+.work-*.log
+storage/
+*.tgz
+node_modules/

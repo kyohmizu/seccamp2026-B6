@@ -1,0 +1,27 @@
+# Cloud Deploy: frontend の delivery pipeline とターゲット。
+# ターゲットは既存の Cloud Run（asia-northeast1）で、本番反映前に人手承認を要求する。
+# 実行サービスアカウントには既存の deploy SA を流用する（build SA とは分離済み）。
+#
+# 適用前に PROJECT / PREFIX を実値へ置換すること（envsubst 例は README 参照）。
+apiVersion: deploy.cloud.google.com/v1
+kind: DeliveryPipeline
+metadata:
+  name: PREFIX-frontend
+description: FlowPay frontend delivery pipeline (approval gate)
+serialPipeline:
+  stages:
+    - targetId: prod
+---
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+metadata:
+  name: prod
+description: Cloud Run prod (requires manual approval)
+requireApproval: true
+run:
+  location: projects/PROJECT/locations/asia-northeast1
+executionConfigs:
+  - usages:
+      - RENDER
+      - DEPLOY
+    serviceAccount: PREFIX-deploy-sa@PROJECT.iam.gserviceaccount.com

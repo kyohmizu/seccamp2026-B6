@@ -1,0 +1,35 @@
+# PRチェック用: pull_request のたびに「依存インストール＋検証ビルド」を実行する。
+# push 版（cloudbuild.trigger.yaml）と違い、AR への push もデプロイもしない（検証のみ）。
+substitutions:
+  _REGION: asia-northeast1
+  _REPO: flowpay
+  _NPM_REGISTRY: ''   # npm レジストリURL（frontend の依存解決に使用する。環境固有。トリガーの substitution で設定）
+options:
+  logging: CLOUD_LOGGING_ONLY
+steps:
+  # _NPM_REGISTRY が指定された場合のみ frontend/.npmrc を生成（環境固有URLはコミットせず注入）
+  - id: npmrc
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if [ -n "${_NPM_REGISTRY}" ]; then
+          printf 'registry=%s\n' "${_NPM_REGISTRY}" > src/frontend/.npmrc
+          echo "wrote src/frontend/.npmrc -> ${_NPM_REGISTRY}"
+        else
+          echo "WARN: _NPM_REGISTRY 未設定。expense-format を解決できずチェック失敗の可能性。"
+        fi
+  # PR の内容で frontend の依存を install する。
+  - id: frontend-deps
+    name: node:22-slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        cd src/frontend
+        npm install --omit=dev --no-audit --no-fund
+  # 検証ビルドのみ（push しない）。ビルドが通るかの確認。
+  - id: build-frontend-check
+    name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', 'flowpay-frontend:pr-check', 'src/frontend']

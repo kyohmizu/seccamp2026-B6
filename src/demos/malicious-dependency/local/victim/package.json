@@ -1,0 +1,10 @@
+{
+  "name": "flowpay-victim",
+  "version": "0.0.0",
+  "private": true,
+  "description": "expense-format（OSS依存の想定）を使用する被害者アプリ（デモ）",
+  "dependencies": {
+    "expense-format": "^1.0.0",
+    "picocolors": "^1.0.0"
+  }
+}

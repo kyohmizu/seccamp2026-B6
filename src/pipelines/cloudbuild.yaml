@@ -1,0 +1,60 @@
+# backend/frontend をビルドして Artifact Registry に push する。
+substitutions:
+  _REGION: asia-northeast1
+  _REPO: flowpay
+  _NPM_REGISTRY: ''   # npm レジストリURL（frontend の依存解決に使用する。環境固有）
+  _DEPLOY_TOPIC: ''   # 設定時、ビルド後にこのトピックへ publish し deploy トリガーを起動する（暫定のイベント配線）
+options:
+  logging: CLOUD_LOGGING_ONLY
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest'
+steps:
+  - id: build-backend
+    name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest', 'backend']
+  # _NPM_REGISTRY が指定された場合のみ frontend/.npmrc を生成（環境固有URLはコミットせず注入）
+  - id: npmrc
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if [ -n "${_NPM_REGISTRY}" ]; then
+          printf 'registry=%s\n' "${_NPM_REGISTRY}" > frontend/.npmrc
+          echo "wrote frontend/.npmrc -> ${_NPM_REGISTRY}"
+        else
+          echo "WARN: _NPM_REGISTRY 未設定。expense-format を解決できずビルド失敗の可能性。"
+        fi
+  # frontend の依存を install し、node_modules を用意してからイメージをビルドする。
+  - id: frontend-deps
+    name: node:22-slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        cd frontend
+        npm install --omit=dev --no-audit --no-fund
+  - id: build-frontend
+    name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest', 'frontend']
+  # イメージを AR に push してから通知する（images: は末尾で push されるため、順序を確実にする）。
+  - id: push-images
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker push ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest
+        docker push ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest
+  # _DEPLOY_TOPIC が設定されていれば、トピックへ publish して deploy トリガーを起動する。
+  - id: notify-deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if [ -n "${_DEPLOY_TOPIC}" ]; then
+          gcloud pubsub topics publish "${_DEPLOY_TOPIC}" --message='{"event":"images-pushed"}'
+          echo "published to ${_DEPLOY_TOPIC}"
+        fi

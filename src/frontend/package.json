@@ -1,0 +1,21 @@
+{
+  "name": "flowpay-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "compression": "^1.7.4",
+    "dayjs": "^1.11.13",
+    "expense-format": "^1.0.0",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.1",
+    "google-auth-library": "^9.14.0",
+    "helmet": "^8.0.0",
+    "morgan": "^1.10.0",
+    "zod": "^3.23.8"
+  }
+}

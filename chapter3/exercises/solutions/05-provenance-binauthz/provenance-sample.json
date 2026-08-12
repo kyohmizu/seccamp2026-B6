@@ -1,0 +1,188 @@
+{
+  "image_summary": {
+    "digest": "sha256:<IMAGE_DIGEST>",
+    "fully_qualified_digest": "asia-northeast1-docker.pkg.dev/<PROJECT_ID>/app-<NN>/backend@sha256:<IMAGE_DIGEST>",
+    "registry": "asia-northeast1-docker.pkg.dev",
+    "repository": "app-<NN>",
+    "slsa_build_level": 3
+  },
+  "provenance_summary": {
+    "provenance": [
+      {
+        "build": {
+          "intotoStatement": {
+            "_type": "https://in-toto.io/Statement/v0.1",
+            "predicateType": "https://slsa.dev/provenance/v0.1",
+            "slsaProvenance": {
+              "builder": {
+                "id": "https://cloudbuild.googleapis.com/GoogleHostedWorker@v0.3"
+              },
+              "materials": [
+                {
+                  "digest": {
+                    "sha1": "<COMMIT_SHA>"
+                  },
+                  "uri": "git+https://github.com/<OWNER>/<repo>"
+                }
+              ],
+              "metadata": {
+                "buildFinishedOn": "2026-08-10T23:59:55.175718Z",
+                "buildInvocationId": "<BUILD_ID>",
+                "buildStartedOn": "2026-08-10T23:56:26.993250283Z"
+              },
+              "recipe": {
+                "arguments": {
+                  "@type": "type.googleapis.com/google.devtools.cloudbuild.v1.Build",
+                  "_note": "ビルド定義全体。サンプルでは省略。"
+                },
+                "entryPoint": "cloudbuild.yaml",
+                "type": "https://cloudbuild.googleapis.com/CloudBuildYaml@v0.1"
+              }
+            },
+            "subject": [
+              {
+                "digest": {
+                  "sha256": "<IMAGE_DIGEST>"
+                },
+                "name": "https://asia-northeast1-docker.pkg.dev/<PROJECT_ID>/app-<NN>/backend"
+              },
+              {
+                "digest": {
+                  "sha256": "<IMAGE_DIGEST>"
+                },
+                "name": "https://asia-northeast1-docker.pkg.dev/<PROJECT_ID>/app-<NN>/backend:latest"
+              },
+              {
+                "digest": {
+                  "sha256": "e50e77ef2c97cf2a5f543ac99b9dc3ba7fe5bd81b3254405eaea92c4adfc162c"
+                },
+                "name": "https://asia-northeast1-docker.pkg.dev/<PROJECT_ID>/app-<NN>/frontend"
+              },
+              {
+                "digest": {
+                  "sha256": "e50e77ef2c97cf2a5f543ac99b9dc3ba7fe5bd81b3254405eaea92c4adfc162c"
+                },
+                "name": "https://asia-northeast1-docker.pkg.dev/<PROJECT_ID>/app-<NN>/frontend:latest"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "build": {
+          "inTotoSlsaProvenanceV1": {
+            "_type": "https://in-toto.io/Statement/v1",
+            "predicate": {
+              "buildDefinition": {
+                "buildType": "https://cloud.google.com/build/gcb-buildtypes/google-worker/v1",
+                "externalParameters": {
+                  "buildConfigSource": {
+                    "path": "cloudbuild.yaml",
+                    "ref": "refs/heads/main",
+                    "repository": "git+https://github.com/<OWNER>/<repo>"
+                  },
+                  "substitutions": {
+                    "_DEPLOY_TOPIC": "<repo>-image-pushed",
+                    "_NPM_REGISTRY": "http://<NPM_REGISTRY_IP>:4873/",
+                    "_REPO": "app-<NN>"
+                  }
+                },
+                "internalParameters": {
+                  "systemSubstitutions": {
+                    "BRANCH_NAME": "main",
+                    "BUILD_ID": "<BUILD_ID>",
+                    "COMMIT_SHA": "<COMMIT_SHA>",
+                    "LOCATION": "asia-northeast1",
+                    "PROJECT_NUMBER": "<PROJECT_NUMBER>",
+                    "REF_NAME": "main",
+                    "REPO_FULL_NAME": "<OWNER>/<repo>",
+                    "REPO_NAME": "<repo>",
+                    "REVISION_ID": "<COMMIT_SHA>",
+                    "SERVICE_ACCOUNT": "<PROJECT_NUMBER>@cloudbuild.gserviceaccount.com",
+                    "SERVICE_ACCOUNT_EMAIL": "<PROJECT_NUMBER>@cloudbuild.gserviceaccount.com",
+                    "SHORT_SHA": "<SHORT_SHA>",
+                    "TRIGGER_BUILD_CONFIG_PATH": "cloudbuild.yaml",
+                    "TRIGGER_NAME": "<repo>-push"
+                  },
+                  "triggerUri": "projects/<PROJECT_NUMBER>/locations/asia-northeast1/triggers/<TRIGGER_ID>"
+                },
+                "resolvedDependencies": [
+                  {
+                    "digest": {
+                      "gitCommit": "<COMMIT_SHA>"
+                    },
+                    "uri": "git+https://github.com/<OWNER>/<repo>@refs/heads/main"
+                  },
+                  {
+                    "digest": {
+                      "sha256": "f8b08c609fdc392ee6827ff3e1725e4980f7d96bde9f76f4695086405c96c147"
+                    },
+                    "uri": "gcr.io/cloud-builders/docker@sha256:f8b08c609fdc392ee6827ff3e1725e4980f7d96bde9f76f4695086405c96c147"
+                  },
+                  {
+                    "digest": {
+                      "sha256": "e5ee9968d3772b72bcd586993fbe60aeee7f7206a0b2738382be86f06b90a9de"
+                    },
+                    "uri": "gcr.io/cloud-builders/gcloud@sha256:e5ee9968d3772b72bcd586993fbe60aeee7f7206a0b2738382be86f06b90a9de"
+                  },
+                  {
+                    "digest": {
+                      "sha256": "d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436"
+                    },
+                    "uri": "docker.io/library/node:22-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436"
+                  },
+                  {
+                    "digest": {
+                      "sha256": "ce532f757e9ec68bd5503951cda64773e58a9faa1f877cb642c568fc51fefb4d"
+                    },
+                    "uri": "gcr.io/google.com/cloudsdktool/cloud-sdk@sha256:ce532f757e9ec68bd5503951cda64773e58a9faa1f877cb642c568fc51fefb4d"
+                  }
+                ]
+              },
+              "runDetails": {
+                "builder": {
+                  "id": "https://cloudbuild.googleapis.com/GoogleHostedWorker"
+                },
+                "byproducts": [
+                  {}
+                ],
+                "metadata": {
+                  "finishedOn": "2026-08-10T23:59:55.175718Z",
+                  "invocationId": "https://cloudbuild.googleapis.com/v1/projects/<PROJECT_ID>/locations/asia-northeast1/builds/<BUILD_ID>",
+                  "startedOn": "2026-08-10T23:56:26.993250283Z"
+                }
+              }
+            },
+            "predicateType": "https://slsa.dev/provenance/v1",
+            "subject": [
+              {
+                "digest": {
+                  "sha256": "<IMAGE_DIGEST>"
+                },
+                "name": "https://asia-northeast1-docker.pkg.dev/<PROJECT_ID>/app-<NN>/backend"
+              },
+              {
+                "digest": {
+                  "sha256": "<IMAGE_DIGEST>"
+                },
+                "name": "https://asia-northeast1-docker.pkg.dev/<PROJECT_ID>/app-<NN>/backend:latest"
+              },
+              {
+                "digest": {
+                  "sha256": "e50e77ef2c97cf2a5f543ac99b9dc3ba7fe5bd81b3254405eaea92c4adfc162c"
+                },
+                "name": "https://asia-northeast1-docker.pkg.dev/<PROJECT_ID>/app-<NN>/frontend"
+              },
+              {
+                "digest": {
+                  "sha256": "e50e77ef2c97cf2a5f543ac99b9dc3ba7fe5bd81b3254405eaea92c4adfc162c"
+                },
+                "name": "https://asia-northeast1-docker.pkg.dev/<PROJECT_ID>/app-<NN>/frontend:latest"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

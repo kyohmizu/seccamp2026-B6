@@ -1,0 +1,4 @@
+# frontend の依存を取得する npm レジストリのURL（環境固有）。
+# ローカルで使用する場合はこのファイルを .npmrc として保存する。
+# CI ではビルド時に _NPM_REGISTRY から自動生成されるため、コミットしない。
+registry=http://REPLACE_WITH_REGISTRY_IP:4873/

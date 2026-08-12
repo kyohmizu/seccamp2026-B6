@@ -1,0 +1,60 @@
+# digest 固定版パイプライン（演習2適用後の参加者リポジトリ cloudbuild.yaml 相当）。
+# ポイント: step の name（ここでは docker と frontend-deps の node:22-slim）を可変タグではなく digest で固定する。
+# ※ digest は固定時点で自分で解決して貼る（resolve-digests.cloudbuild.yaml 参照）。下記は解決日時点の実値。
+# ※ frontend-deps は演習2時点の baseline どおり npm install（npm ci 化は演習3）。
+# ※ npmrc の gcloud / notify-deploy の cloud-sdk も同様に digest 固定可能。ここでは主対象の docker / node:22-slim を固定。
+substitutions:
+  _REGION: asia-northeast1
+  _REPO: flowpay
+  _NPM_REGISTRY: ''   # npm レジストリURL（frontend の依存解決に使用する。環境固有）
+  _DEPLOY_TOPIC: ''   # 設定時、ビルド後にこのトピックへ publish し deploy トリガーを起動する
+options:
+  logging: CLOUD_LOGGING_ONLY
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest'
+steps:
+  - id: build-backend
+    name: gcr.io/cloud-builders/docker@sha256:617f98016081e2978c0b44184d7b09446027b909f1078b8fdc23efc4c74c5f20
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest', 'backend']
+  - id: npmrc
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if [ -n "${_NPM_REGISTRY}" ]; then
+          printf 'registry=%s\n' "${_NPM_REGISTRY}" > frontend/.npmrc
+          echo "wrote frontend/.npmrc -> ${_NPM_REGISTRY}"
+        else
+          echo "WARN: _NPM_REGISTRY 未設定。expense-format を解決できずビルド失敗の可能性。"
+        fi
+  - id: frontend-deps
+    name: node:22-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        cd frontend
+        npm install --omit=dev --no-audit --no-fund
+  - id: build-frontend
+    name: gcr.io/cloud-builders/docker@sha256:617f98016081e2978c0b44184d7b09446027b909f1078b8fdc23efc4c74c5f20
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest', 'frontend']
+  - id: push-images
+    name: gcr.io/cloud-builders/docker@sha256:617f98016081e2978c0b44184d7b09446027b909f1078b8fdc23efc4c74c5f20
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker push ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest
+        docker push ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest
+  - id: notify-deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if [ -n "${_DEPLOY_TOPIC}" ]; then
+          gcloud pubsub topics publish "${_DEPLOY_TOPIC}" --message='{"event":"images-pushed"}'
+          echo "published to ${_DEPLOY_TOPIC}"
+        fi

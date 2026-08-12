@@ -1,0 +1,101 @@
+# 解答（発展・品質ゲート化）: CRITICAL の脆弱性を検出したらビルドを停止する構成。
+# 仕組み:
+#   - Trivy に --exit-code 1 を付けると、対象重大度の脆弱性が1件でもあれば非ゼロ終了し、
+#     その Cloud Build ステップ＝ビルド全体が失敗する（以降のステップは実行されない）。
+#   - 「AR への公開すら止める」ため、イメージ検査は push の前に行う。ローカルビルド済み
+#     イメージを docker save で tar 化し、trivy image --input で検査する（AR から pull しない＝docker 認証も不要）。
+#   - ここでは CRITICAL のみを対象。HIGH まで広げるなら --severity HIGH,CRITICAL。
+#   - 実務では --ignore-unfixed を併用し「修正版が出ている脆弱性」だけを対象にすることが多い
+#     （未修正の脆弱性で恒常的にビルドが落ちるのを避ける）。ここでは確実に停止させるため付けていない。
+#   - 恒久的な例外は .trivyignore / VEX で CVE 単位に許可する（ゲートを恒久的に緩めない）。
+substitutions:
+  _REGION: asia-northeast1
+  _REPO: flowpay
+  _NPM_REGISTRY: ''   # npm レジストリURL（frontend の依存解決に使用する。環境固有）
+  _DEPLOY_TOPIC: ''   # 設定時、ビルド後にこのトピックへ publish し deploy トリガーを起動する
+options:
+  logging: CLOUD_LOGGING_ONLY
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest'
+steps:
+  - id: build-backend
+    name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest', 'backend']
+  # _NPM_REGISTRY が指定された場合のみ frontend/.npmrc を生成（環境固有URLはコミットせず注入）
+  - id: npmrc
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if [ -n "${_NPM_REGISTRY}" ]; then
+          printf 'registry=%s\n' "${_NPM_REGISTRY}" > frontend/.npmrc
+          echo "wrote frontend/.npmrc -> ${_NPM_REGISTRY}"
+        else
+          echo "WARN: _NPM_REGISTRY 未設定。expense-format を解決できずビルド失敗の可能性。"
+        fi
+  - id: frontend-deps
+    name: node:22-slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        cd frontend
+        npm install --omit=dev --no-audit --no-fund
+  - id: build-frontend
+    name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest', 'frontend']
+
+  # === ゲート1: 依存スキャン（SCA / fs）。CRITICAL があれば停止。push 前なので公開も止まる ===
+  - id: gate-deps-backend
+    name: aquasec/trivy
+    args: ['fs', '--scanners', 'vuln', '--severity', 'CRITICAL', '--exit-code', '1', 'backend']
+  - id: gate-deps-frontend
+    name: aquasec/trivy
+    args: ['fs', '--scanners', 'vuln', '--severity', 'CRITICAL', '--exit-code', '1', 'frontend']
+
+  # ローカルビルド済みイメージを tar 化（push 前に中身を検査するため。同一ビルド内の docker daemon を共有）
+  - id: save-images
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker save -o /workspace/backend.tar ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest
+        docker save -o /workspace/frontend.tar ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest
+
+  # === ゲート2: イメージスキャン（push 前・ローカル tar を検査）。CRITICAL があれば停止 ===
+  - id: gate-image-backend
+    name: aquasec/trivy
+    args: ['image', '--input', '/workspace/backend.tar', '--scanners', 'vuln', '--severity', 'CRITICAL', '--exit-code', '1']
+  - id: gate-image-frontend
+    name: aquasec/trivy
+    args: ['image', '--input', '/workspace/frontend.tar', '--scanners', 'vuln', '--severity', 'CRITICAL', '--exit-code', '1']
+
+  # ここまで到達＝CRITICAL なし。イメージを AR に push する（ゲート通過後のみ公開）。
+  - id: push-images
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker push ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest
+        docker push ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest
+
+  # SBOM（CycloneDX）生成。push 前に tar 化済みなので --input で認証不要。
+  - id: sbom-frontend
+    name: aquasec/trivy
+    args: ['image', '--input', '/workspace/frontend.tar', '--format', 'cyclonedx', '--output', '/workspace/frontend.sbom.cdx.json']
+
+  # _DEPLOY_TOPIC が設定されていれば、トピックへ publish して deploy トリガーを起動する。
+  - id: notify-deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if [ -n "${_DEPLOY_TOPIC}" ]; then
+          gcloud pubsub topics publish "${_DEPLOY_TOPIC}" --message='{"event":"images-pushed"}'
+          echo "published to ${_DEPLOY_TOPIC}"
+        fi

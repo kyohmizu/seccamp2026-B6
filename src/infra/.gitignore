@@ -1,0 +1,11 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+terraform.tfvars
+terraform.prod.tfvars
+*.auto.tfvars
+# 実名簿は利用者のメール/プロジェクトIDを含むため除外（example はコミットする）
+scripts/roster.csv
+# .terraform.lock.hcl と *.tf, terraform.tfvars.example, roster.example.csv はコミットする

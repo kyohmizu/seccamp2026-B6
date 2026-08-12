@@ -1,0 +1,45 @@
+# 解答: パイプラインに Trivy スキャンを組み込む。
+# fs スキャン（依存=SCA、認証不要）＋ image スキャン（AR認証あり）＋ SBOM生成。
+# まずは --exit-code 0（レポートのみ・ビルドは落とさない）。ゲート化は --exit-code 1 に変える。
+substitutions:
+  _REGION: asia-northeast1
+  _REPO: flowpay
+options:
+  logging: CLOUD_LOGGING_ONLY
+steps:
+  # 依存のスキャン（SCA）: マニフェストを解析。レジストリ認証不要。
+  - id: scan-deps-backend
+    name: aquasec/trivy
+    args: ['fs', '--scanners', 'vuln', '--severity', 'HIGH,CRITICAL', '--exit-code', '0', 'backend']
+  - id: scan-deps-frontend
+    name: aquasec/trivy
+    args: ['fs', '--scanners', 'vuln', '--severity', 'HIGH,CRITICAL', '--exit-code', '0', 'frontend']
+
+  # Trivy が AR からイメージを pull するための docker 認証（ビルド SA のトークン）
+  - id: auth
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -e
+        mkdir -p /workspace/.docker
+        TOKEN=$$(gcloud auth print-access-token)
+        AUTH=$$(printf 'oauth2accesstoken:%s' "$$TOKEN" | base64 -w0)
+        printf '{"auths":{"%s-docker.pkg.dev":{"auth":"%s"}}}' "${_REGION}" "$$AUTH" > /workspace/.docker/config.json
+
+  # イメージのスキャン（OSパッケージ＋言語依存）
+  - id: scan-image-backend
+    name: aquasec/trivy
+    env: ['DOCKER_CONFIG=/workspace/.docker']
+    args: ['image', '--severity', 'HIGH,CRITICAL', '--exit-code', '0', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/backend:latest']
+  - id: scan-image-frontend
+    name: aquasec/trivy
+    env: ['DOCKER_CONFIG=/workspace/.docker']
+    args: ['image', '--severity', 'HIGH,CRITICAL', '--exit-code', '0', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest']
+
+  # SBOM（CycloneDX）生成
+  - id: sbom-frontend
+    name: aquasec/trivy
+    env: ['DOCKER_CONFIG=/workspace/.docker']
+    args: ['image', '--format', 'cyclonedx', '--output', '/workspace/frontend.sbom.cdx.json', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/frontend:latest']

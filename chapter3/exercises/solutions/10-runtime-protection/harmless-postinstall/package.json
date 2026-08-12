@@ -1,0 +1,9 @@
+{
+  "name": "pi-demo",
+  "version": "1.0.0",
+  "description": "無害な postinstall デモ用パッケージ（ビルドログ可視性の自習用）。install 時に文字列を出力するだけで、外部通信や情報収集は行わない。",
+  "license": "MIT",
+  "scripts": {
+    "postinstall": "node -e \"console.log('[demo] postinstall executed — install スクリプトが実行されました')\""
+  }
+}

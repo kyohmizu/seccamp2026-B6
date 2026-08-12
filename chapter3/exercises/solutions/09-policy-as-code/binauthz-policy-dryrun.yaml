@@ -1,0 +1,11 @@
+# 段階導入用: 監査モード（DRYRUN）。
+# evaluationMode は REQUIRE_ATTESTATION のままだが、enforcementMode を DRYRUN_AUDIT_LOG_ONLY に
+# することで、検証条件を満たさないデプロイもブロックせず監査ログへの記録のみを行う。
+# 影響を確認したら enforcementMode を ENFORCED_BLOCK_AND_AUDIT_LOG（＝演習05 の binauthz-policy.yaml）へ切り替える。
+# <PROJECT> は自分のプロジェクトIDに置換する。
+defaultAdmissionRule:
+  evaluationMode: REQUIRE_ATTESTATION
+  enforcementMode: DRYRUN_AUDIT_LOG_ONLY
+  requireAttestationsBy:
+    - projects/<PROJECT>/attestors/built-by-cloud-build
+globalPolicyEvaluationMode: ENABLE

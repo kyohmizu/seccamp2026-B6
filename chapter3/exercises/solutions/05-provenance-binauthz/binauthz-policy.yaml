@@ -1,0 +1,8 @@
+# Binary Authorization: Cloud Build が作ったイメージ（built-by-cloud-build アテスターの
+# attestation を持つもの）だけを許可する。<PROJECT> は置き換える。
+defaultAdmissionRule:
+  evaluationMode: REQUIRE_ATTESTATION
+  enforcementMode: ENFORCED_BLOCK_AND_AUDIT_LOG
+  requireAttestationsBy:
+    - projects/<PROJECT>/attestors/built-by-cloud-build
+globalPolicyEvaluationMode: ENABLE

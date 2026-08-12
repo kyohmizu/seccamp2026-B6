@@ -1,0 +1,18 @@
+# OS
+.DS_Store
+**/.DS_Store
+
+# ローカルのみ（企画書・中間資料・作業ログ等は _local/ 配下に置く＝コミットしない）
+**/_local/
+
+# ローカル検証で生成されるもの
+**/.terraform/
+*.tfstate
+*.tfstate.*
+**/terraform.tfvars
+**/node_modules/
+*.sbom.cdx.json
+# ローカルの npm install で生成される（baseline はロックファイル非コミット。npm ci はDockerfileの条件分岐で対応）
+src/frontend/package-lock.json
+# 演習用レジストリURL（環境固有・IPを含む）はコミットしない。ビルド時に _NPM_REGISTRY で注入
+src/frontend/.npmrc

@@ -1,0 +1,26 @@
+# Cloud Deploy がデプロイする Cloud Run サービス定義（Knative 形式）。
+# 重要: Cloud Deploy はこの spec で Cloud Run サービスを「丸ごと置換」する。
+#       稼働中サービスが持つ設定（環境変数・ingress・ポート等）をここに漏れなく写すこと。
+#       欠けた項目は新リビジョンで失われる（例: BACKEND_URL を書かないと frontend が backend を呼べなくなる）。
+#       現在値は次で確認: gcloud run services describe <prefix>-frontend --region=$REGION --format=yaml
+#
+# 既存の frontend サービス・runtime SA に合わせる（別名にすると新規サービスが作られる）。
+# image はプレースホルダー名 `frontend`。リリース作成時に --images=frontend=<AR digest> で差し替える。
+# 適用前に PROJECT / PREFIX / BACKEND_URL_VALUE を実値へ置換すること（env 変数名 BACKEND_URL は置換対象外）。
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: PREFIX-frontend
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    spec:
+      serviceAccountName: PREFIX-frontend-sa@PROJECT.iam.gserviceaccount.com
+      containers:
+        - image: frontend
+          ports:
+            - containerPort: 8080
+          env:
+            - name: BACKEND_URL
+              value: BACKEND_URL_VALUE   # 例: https://PREFIX-backend-xxxx-an.a.run.app（describe で確認して埋める）

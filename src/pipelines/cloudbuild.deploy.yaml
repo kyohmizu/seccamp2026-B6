@@ -1,0 +1,35 @@
+# デプロイ用: イメージが Artifact Registry に push されたのを契機に起動し、
+# 最新イメージを Cloud Run に反映する。build とは別トリガー・別SA（deploy SA）で動く。
+#
+# ※ :latest タグのまま services update すると、Cloud Run が「変更なし」と見なして
+#   新リビジョンを作らないことがある。digest を解決してから deploy する（確実に反映）。
+substitutions:
+  _REGION: asia-northeast1
+  _REPO: flowpay
+  _SERVICE_BACKEND: ''   # 例: student01-backend（トリガーの substitution で設定）
+  _SERVICE_FRONTEND: ''  # 例: student01-frontend
+options:
+  logging: CLOUD_LOGGING_ONLY
+steps:
+  - id: deploy-backend
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -e
+        IMG="${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend"
+        DIGEST="$$(gcloud artifacts docker images describe $${IMG}:latest --format='value(image_summary.digest)')"
+        echo "deploy ${_SERVICE_BACKEND} <- $${IMG}@$${DIGEST}"
+        gcloud run services update ${_SERVICE_BACKEND} --image="$${IMG}@$${DIGEST}" --region=${_REGION} --quiet
+  - id: deploy-frontend
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -e
+        IMG="${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend"
+        DIGEST="$$(gcloud artifacts docker images describe $${IMG}:latest --format='value(image_summary.digest)')"
+        echo "deploy ${_SERVICE_FRONTEND} <- $${IMG}@$${DIGEST}"
+        gcloud run services update ${_SERVICE_FRONTEND} --image="$${IMG}@$${DIGEST}" --region=${_REGION} --quiet

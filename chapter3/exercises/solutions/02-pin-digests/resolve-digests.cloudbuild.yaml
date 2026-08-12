@@ -1,0 +1,20 @@
+# crane で、使用イメージの digest を一括解決する。
+# 実行: gcloud builds submit --no-source --config solutions/02-pin-digests/resolve-digests.cloudbuild.yaml
+# 出力の "PINNED <image>@sha256:..." を Dockerfile / cloudbuild に貼る。
+options:
+  logging: CLOUD_LOGGING_ONLY
+steps:
+  - name: gcr.io/go-containerregistry/crane:debug # :debug は busybox(sh) 入り
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        for i in \
+          golang:1.23 \
+          node:22-slim \
+          gcr.io/distroless/static-debian12:nonroot \
+          gcr.io/cloud-builders/docker \
+          aquasec/trivy:latest \
+          gcr.io/google.com/cloudsdktool/cloud-sdk:slim ; do
+          echo "PINNED $$i@$$(crane digest $$i)"
+        done

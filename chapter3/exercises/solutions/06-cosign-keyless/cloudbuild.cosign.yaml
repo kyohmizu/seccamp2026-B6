@@ -1,0 +1,39 @@
+# cosign keyless 署名（発展）。既存の flowpay イメージに署名する。
+# 実行（専用SAが必須。デフォルトSAはIDトークンを発行できない）:
+#   gcloud builds submit --no-source \
+#     --config exercises/solutions/06-cosign-keyless/cloudbuild.cosign.yaml \
+#     --service-account=projects/<PROJECT>/serviceAccounts/flowpay-build-sa@<PROJECT>.iam.gserviceaccount.com \
+#     --default-buckets-behavior=regional-user-owned-bucket
+substitutions:
+  _REGION: asia-northeast1
+  _REPO: flowpay
+  _IMAGE: backend
+options:
+  logging: CLOUD_LOGGING_ONLY
+steps:
+  - id: sign
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    env: ['HOME=/tmp'] # cosign の TUF/キャッシュ書き込み先を writable に
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        curl -sSL -o /usr/local/bin/cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+        chmod +x /usr/local/bin/cosign
+        # AR 認証（ビルド SA のアクセストークンから docker config を作る）
+        mkdir -p /tmp/.docker
+        TOKEN_AR=$$(gcloud auth print-access-token)
+        AUTH=$$(printf 'oauth2accesstoken:%s' "$$TOKEN_AR" | base64 -w0)
+        printf '{"auths":{"%s-docker.pkg.dev":{"auth":"%s"}}}' "${_REGION}" "$$AUTH" > /tmp/.docker/config.json
+        export DOCKER_CONFIG=/tmp/.docker
+        # OIDC ID トークン（実行SAの身元, audience=sigstore）。
+        # メタデータの identity は Cloud Build 上では発行不可なので、IAM Credentials の
+        # impersonation(generateIdToken) で取得する。SAは自分自身への tokenCreator が必要。
+        SIGN_SA=flowpay-build-sa@$PROJECT_ID.iam.gserviceaccount.com
+        ID_TOKEN=$$(gcloud auth print-identity-token --impersonate-service-account=$$SIGN_SA --audiences=sigstore --include-email)
+        IMG=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}
+        DIGEST=$$(gcloud artifacts docker images describe $$IMG:latest --format='value(image_summary.digest)')
+        echo "signing $$IMG@$$DIGEST"
+        cosign sign --yes --identity-token="$$ID_TOKEN" "$$IMG@$$DIGEST"
+        echo "SIGNED_IMAGE=$$IMG@$$DIGEST"

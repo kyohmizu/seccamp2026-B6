@@ -1,0 +1,23 @@
+# Verdaccio を「公開npmレジストリ(npmjs.com)の代役」として使用するデモ設定。
+# ・expense-format … ローカル専用（proxy を書かない＝publish 済みのバージョンが権威）。
+# ・それ以外(**)   … 本物の npmjs.org へプロキシ＆キャッシュ。express 等は問題なく入る。
+# これにより「デフォルトの向き先を Verdaccio にしても、他パッケージのインストールに支障は出ない」。
+storage: ./storage
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+packages:
+  'expense-format':
+    access: $all
+    publish: $all
+    unpublish: $all
+    # proxy 行を書かない＝アップリンクに問い合わせない（ローカルのみ）
+  '@*/*':
+    access: $all
+    publish: $authenticated
+    proxy: npmjs
+  '**':
+    access: $all
+    publish: $authenticated
+    proxy: npmjs
+log: { type: stdout, format: pretty, level: warn }

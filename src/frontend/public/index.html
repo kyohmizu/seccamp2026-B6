@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlowPay — 経費精算</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --border: #e5e8f0;
+      --text: #1a2233;
+      --muted: #6b7488;
+      --brand: #4f46e5;
+      --brand-ink: #3730a3;
+      --accent: #0ea5a4;
+      --danger: #dc2626;
+      --shadow: 0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.06);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+
+    /* ---- header ---- */
+    header.app {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: saturate(180%) blur(6px);
+    }
+    .bar {
+      max-width: 960px; margin: 0 auto; padding: .75rem 1.25rem;
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .logo { display: flex; align-items: center; gap: .55rem; font-weight: 700; font-size: 1.1rem; letter-spacing: -.01em; }
+    .logo svg { display: block; }
+    .logo small { font-weight: 500; color: var(--muted); font-size: .78rem; }
+    .spacer { flex: 1; }
+    .nav { display: flex; gap: .25rem; }
+    .nav a {
+      color: var(--muted); text-decoration: none; font-size: .85rem;
+      padding: .35rem .7rem; border-radius: 8px;
+    }
+    .nav a.active { color: var(--brand-ink); background: #eef0fe; font-weight: 600; }
+    .nav a:hover { color: var(--text); }
+    .user { display: flex; align-items: center; gap: .5rem; }
+    .avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--brand), var(--accent));
+      color: #fff; font-size: .8rem; font-weight: 700;
+      display: grid; place-items: center;
+    }
+    .user span { font-size: .85rem; color: var(--muted); }
+
+    main { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+    .page-title { margin: .25rem 0 1.25rem; font-size: 1.35rem; }
+
+    /* ---- summary cards ---- */
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 1rem 1.15rem; box-shadow: var(--shadow);
+    }
+    .card .label { font-size: .78rem; color: var(--muted); display: flex; align-items: center; gap: .4rem; }
+    .card .value { font-size: 1.5rem; font-weight: 700; margin-top: .35rem; letter-spacing: -.01em; }
+    .card .value.money { font-variant-numeric: tabular-nums; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+    /* ---- category breakdown ---- */
+    .breakdown { padding: 1.15rem; display: flex; flex-direction: column; gap: .65rem; }
+    .bd-row { display: grid; grid-template-columns: 150px 1fr auto; align-items: center; gap: .85rem; }
+    .bd-bar { background: #eef1f6; border-radius: 999px; height: 10px; overflow: hidden; }
+    .bd-bar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--brand), var(--accent)); }
+    .bd-amount { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .bd-count { font-weight: 400; color: var(--muted); font-size: .78rem; }
+
+    /* ---- list filter ---- */
+    .filter { display: flex; align-items: center; gap: .6rem; padding: 1rem 1.15rem 0; }
+    .filter label { font-size: .8rem; color: var(--muted); white-space: nowrap; }
+    .filter select { width: auto; min-width: 150px; }
+
+    /* ---- form ---- */
+    .panel {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      box-shadow: var(--shadow); margin-bottom: 1.5rem;
+    }
+    .panel h2 { margin: 0; padding: 1rem 1.15rem; font-size: 1rem; border-bottom: 1px solid var(--border); }
+    form { display: grid; grid-template-columns: 160px 1fr 1.4fr auto; gap: .75rem; padding: 1.15rem; align-items: end; }
+    .field { display: flex; flex-direction: column; gap: .3rem; }
+    .field label { font-size: .78rem; color: var(--muted); }
+    input, select {
+      font: inherit; padding: .55rem .65rem; border: 1px solid var(--border); border-radius: 9px;
+      background: #fff; color: var(--text); width: 100%;
+    }
+    input:focus, select:focus { outline: 2px solid #c7d2fe; border-color: var(--brand); }
+    button.primary {
+      font: inherit; font-weight: 600; color: #fff; background: var(--brand);
+      border: 0; border-radius: 9px; padding: .6rem 1.25rem; cursor: pointer; white-space: nowrap;
+    }
+    button.primary:hover { background: var(--brand-ink); }
+    button.primary:disabled { opacity: .6; cursor: default; }
+
+    /* ---- table ---- */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 560px; }
+    thead th {
+      text-align: left; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em;
+      color: var(--muted); font-weight: 600; padding: .6rem 1.15rem; border-bottom: 1px solid var(--border);
+    }
+    tbody td { padding: .7rem 1.15rem; border-bottom: 1px solid #f0f2f7; font-size: .9rem; vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: #fafbff; }
+    .id { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .amount { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .date { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .badge {
+      display: inline-flex; align-items: center; gap: .35rem;
+      font-size: .78rem; font-weight: 600; padding: .2rem .6rem; border-radius: 999px;
+      background: var(--b-bg, #eef1f6); color: var(--b-ink, #475069); white-space: nowrap;
+    }
+
+    /* states */
+    .state { padding: 2.5rem 1.15rem; text-align: center; color: var(--muted); }
+    .state .big { font-size: 2rem; margin-bottom: .5rem; }
+    .error {
+      margin: 0 1.15rem 1.15rem; padding: .7rem .9rem; border-radius: 9px;
+      background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; font-size: .85rem;
+    }
+    .skeleton { height: 14px; border-radius: 6px; background: linear-gradient(90deg,#eef0f5,#f6f7fb,#eef0f5); background-size: 200% 100%; animation: sh 1.2s infinite; }
+    @keyframes sh { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* toast */
+    .toast {
+      position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%) translateY(1rem);
+      background: #111827; color: #fff; padding: .7rem 1.1rem; border-radius: 10px; font-size: .88rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25); opacity: 0; pointer-events: none;
+      transition: opacity .2s, transform .2s; display: flex; align-items: center; gap: .5rem;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    footer { max-width: 960px; margin: 0 auto; padding: 0 1.25rem 2rem; color: var(--muted); font-size: .78rem; }
+
+    @media (max-width: 720px) {
+      .cards { grid-template-columns: 1fr; }
+      form { grid-template-columns: 1fr 1fr; }
+      .nav { display: none; }
+      .user span { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app">
+    <div class="bar">
+      <div class="logo">
+        <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <rect width="32" height="32" rx="8" fill="#4f46e5"/>
+          <path d="M9 22V10h11M9 16h8" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="22.5" cy="20.5" r="3.2" fill="#0ea5a4" stroke="#fff" stroke-width="1.6"/>
+        </svg>
+        FlowPay <small>経費精算</small>
+      </div>
+      <nav class="nav">
+        <a href="#" class="active">経費</a>
+        <a href="#">レポート</a>
+        <a href="#">承認</a>
+        <a href="#">設定</a>
+      </nav>
+      <div class="spacer"></div>
+      <div class="user">
+        <span>平井 朗人</span>
+        <div class="avatar">平</div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <h1 class="page-title">経費一覧</h1>
+
+    <section class="cards">
+      <div class="card">
+        <div class="label"><span class="dot" style="background:#4f46e5"></span>合計金額</div>
+        <div class="value money" id="sum-total">—</div>
+      </div>
+      <div class="card">
+        <div class="label"><span class="dot" style="background:#0ea5a4"></span>今月の合計</div>
+        <div class="value money" id="sum-month">—</div>
+      </div>
+      <div class="card">
+        <div class="label"><span class="dot" style="background:#f59e0b"></span>登録件数</div>
+        <div class="value" id="sum-count">—</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>カテゴリ別内訳</h2>
+      <div class="breakdown" id="by-category"></div>
+    </section>
+
+    <section class="panel">
+      <h2>経費を登録</h2>
+      <form id="f">
+        <div class="field">
+          <label for="amount">金額（円）</label>
+          <input id="amount" type="number" min="1" placeholder="0" required />
+        </div>
+        <div class="field">
+          <label for="category">カテゴリ</label>
+          <select id="category">
+            <option>交通費</option>
+            <option>会議費</option>
+            <option>消耗品</option>
+            <option>出張費</option>
+            <option>接待費</option>
+            <option>その他</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="memo">メモ</label>
+          <input id="memo" type="text" placeholder="用途・宛先など" />
+        </div>
+        <button class="primary" type="submit" id="submit">登録する</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>経費明細</h2>
+      <!-- 環境確認の演習: 直後のブロックを囲んでいる HTML コメント（開始行と終了行）を削除すると、カテゴリ絞り込みが有効になります。 -->
+      <!--
+      <div class="filter">
+        <label for="filter-category">カテゴリで絞り込み</label>
+        <select id="filter-category" onchange="load()">
+          <option value="">すべて</option>
+          <option>交通費</option>
+          <option>会議費</option>
+          <option>消耗品</option>
+          <option>出張費</option>
+          <option>接待費</option>
+          <option>その他</option>
+        </select>
+      </div>
+      -->
+      <div id="feedback"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:64px">No.</th>
+              <th style="width:120px">登録日</th>
+              <th style="width:130px">カテゴリ</th>
+              <th>メモ</th>
+              <th style="width:130px; text-align:right">金額</th>
+            </tr>
+          </thead>
+          <tbody id="list"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>FlowPay Inc. — 社内経費精算システム</footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 });
+    const CATS = {
+      '交通費': { emoji: '🚃', bg: '#e6efff', ink: '#1d4ed8' },
+      '会議費': { emoji: '☕', bg: '#fef3e2', ink: '#b45309' },
+      '消耗品': { emoji: '🖇️', bg: '#e6faf7', ink: '#0f766e' },
+      '出張費': { emoji: '✈️', bg: '#f0e9ff', ink: '#6d28d9' },
+      '接待費': { emoji: '🍽️', bg: '#ffe9ef', ink: '#be123c' },
+      'その他': { emoji: '📌', bg: '#eef1f6', ink: '#475069' },
+    };
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    function badge(cat) {
+      const c = CATS[cat] || CATS['その他'];
+      return `<span class="badge" style="--b-bg:${c.bg};--b-ink:${c.ink}">${c.emoji} ${esc(cat || 'その他')}</span>`;
+    }
+    function fmtDate(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      if (isNaN(d)) return '—';
+      return d.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    }
+    function feedback(html) { document.getElementById('feedback').innerHTML = html; }
+    function skeletonRows() {
+      const row = `<tr>${'<td><div class="skeleton" style="width:70%"></div></td>'.repeat(5)}</tr>`;
+      document.getElementById('list').innerHTML = row.repeat(4);
+    }
+
+    let toastTimer;
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.innerHTML = `✓ ${esc(msg)}`;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    function render(items) {
+      feedback('');
+      const list = document.getElementById('list');
+      if (!items.length) {
+        list.innerHTML = `<tr><td colspan="5"><div class="state"><div class="big">🧾</div>まだ経費が登録されていません。上のフォームから登録してください。</div></td></tr>`;
+        return;
+      }
+      // backend が新しい順に返すのでそのまま表示する。
+      list.innerHTML = items.map((e) => `
+        <tr>
+          <td class="id">#${esc(String(e.id).slice(0, 8))}</td>
+          <td class="date">${esc(e.dateText) || fmtDate(e.createdAt)}</td>
+          <td>${badge(e.category)}</td>
+          <td>${esc(e.memo) || '<span style="color:var(--muted)">（メモなし）</span>'}</td>
+          <td class="amount">${esc(e.amountText) || yen.format(e.amount || 0)}</td>
+        </tr>`).join('');
+    }
+
+    // カテゴリ別内訳（summary API の byCategory）を棒グラフ風に表示する。
+    function renderByCategory(byCat) {
+      const el = document.getElementById('by-category');
+      if (!el) return;
+      if (!byCat || !byCat.length) {
+        el.innerHTML = '<div style="color:var(--muted)">まだ内訳がありません。</div>';
+        return;
+      }
+      const max = Math.max(...byCat.map((c) => c.total || 0)) || 1;
+      el.innerHTML = byCat.map((c) => {
+        const pct = Math.round(((c.total || 0) / max) * 100);
+        const amount = esc(c.totalText) || yen.format(c.total || 0);
+        return `
+        <div class="bd-row">
+          <div class="bd-cat">${badge(c.category)}</div>
+          <div class="bd-bar"><span style="width:${pct}%"></span></div>
+          <div class="bd-amount">${amount}<div class="bd-count">${c.count ?? 0} 件</div></div>
+        </div>`;
+      }).join('');
+    }
+
+    // サマリーカードは backend の集計API(/api/summary)から取得する。
+    async function loadSummary() {
+      try {
+        const res = await fetch('/api/summary');
+        if (!res.ok) throw new Error();
+        const s = await res.json();
+        document.getElementById('sum-total').textContent = s.totalText ?? yen.format(s.total || 0);
+        document.getElementById('sum-month').textContent = s.monthTotalText ?? yen.format(s.monthTotal || 0);
+        document.getElementById('sum-count').textContent = `${s.count ?? 0} 件`;
+        renderByCategory(s.byCategory || []);
+      } catch {
+        /* 取得失敗時はカードを — のままにする */
+      }
+    }
+
+    async function load() {
+      skeletonRows();
+      loadSummary();
+      // カテゴリ絞り込み UI が有効な場合はその値で一覧を絞り込む。
+      // UI が無い（初期状態）ときは category が undefined となり、絞り込みは行われない。
+      const category = document.getElementById('filter-category')?.value || '';
+      const qs = category ? `?category=${encodeURIComponent(category)}` : '';
+      try {
+        const res = await fetch(`/api/expenses${qs}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        render((await res.json()) || []);
+      } catch (e) {
+        feedback(`<div class="error">経費データの取得に失敗しました（${esc(e.message)}）。時間をおいて再読み込みしてください。</div>`);
+        document.getElementById('list').innerHTML = '';
+      }
+    }
+
+    document.getElementById('f').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const btn = document.getElementById('submit');
+      btn.disabled = true; btn.textContent = '登録中…';
+      try {
+        const res = await fetch('/api/expenses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: Number(document.getElementById('amount').value),
+            category: document.getElementById('category').value,
+            memo: document.getElementById('memo').value,
+          }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        ev.target.reset();
+        toast('経費を登録しました');
+        await load();
+      } catch (e) {
+        feedback(`<div class="error">登録に失敗しました（${esc(e.message)}）。</div>`);
+      } finally {
+        btn.disabled = false; btn.textContent = '登録する';
+      }
+    });
+
+    load();
+  </script>
+</body>
+</html>

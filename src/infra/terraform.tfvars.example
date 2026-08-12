@@ -1,0 +1,48 @@
+# 課金/クォータ用のプロジェクト。1プロジェクト共有なら、そのプロジェクトを指定する。
+google_project = "your-project-id"
+region         = "asia-northeast1"
+
+# 通常はこれ。1プロジェクトに app-01.. を GitHub 連携付き（push/PR/deploy トリガー）で環境数分だけ自動生成する。
+# 事前に host connection（connection_name）を gcloud で作成・OAuth 認可しておくこと。
+app_count       = 10
+github_owner    = "your-org"           # 個人アカウント名 or 組織名
+connection_name = "flowpay-github"     # gcloud で作成済みの Cloud Build 接続名
+npm_registry    = "http://<IP>:4873/"  # 演習用 npm レジストリ（Verdaccio）。IP を含むためコミットしない
+
+# ============================================================================
+# 以下は「環境ごとに個別設定が必要な場合」だけ使用する（別プロジェクト・別リポジトリ・
+# 個別アクセス等）。使用するときは app_count = 0 にして environments を明示する。
+# ============================================================================
+
+# app_count = 0
+# environments = {
+#   app-01 = { project_id = "your-project-id" }
+#   app-02 = { project_id = "your-project-id" }
+# }
+
+# --- 別プロジェクトに分ける: 行ごとに project_id を変える ---
+# environments = {
+#   app-01 = { project_id = "seccamp-b6-app-01" }
+#   app-02 = { project_id = "seccamp-b6-app-02" }
+# }
+
+# --- proxy 閲覧を各人に許可する: members にアカウントを入れる（frontend の run.invoker）---
+# environments = {
+#   app-01 = { project_id = "your-project-id", members = ["user:app-01@example.com"] }
+# }
+
+# --- GitHub トリガーも作る（接続を gcloud で OAuth 認可済みにしてから）---
+# environments = {
+#   app-01 = {
+#     project_id      = "seccamp-b6-app-01"
+#     github_owner    = "your-org"
+#     github_repo     = "seccamp-b6-app-01"
+#     connection_name = "flowpay-github"
+#     build_sa        = "projects/seccamp-b6-app-01/serviceAccounts/app-01-build-sa@seccamp-b6-app-01.iam.gserviceaccount.com"
+#     substitutions   = { _NPM_REGISTRY = "http://<IP>:4873/" }
+#     # 利用者ごとの別リポジトリ（make-student-repo.sh でルート直下配置）なら:
+#     cloudbuild_config        = "cloudbuild.yaml"
+#     pr_cloudbuild_config     = "cloudbuild.pr.yaml"      # PRチェック。不要なら enable_pr_check = false
+#     deploy_cloudbuild_config = "cloudbuild.deploy.yaml"  # デプロイ。不要なら enable_deploy_trigger = false
+#   }
+# }

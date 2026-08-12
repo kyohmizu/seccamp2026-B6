@@ -1,0 +1,13 @@
+# gcloud builds submit のアップロードから除外（ビルドは backend/ frontend/ のみ必要）。
+# Terraform state/tfvars を Cloud Build のステージングに送らないための安全策も兼ねる。
+.git/
+infra/
+exercises/
+docs/
+solutions/
+**/node_modules/
+**/.terraform/
+**/*.tfstate*
+**/terraform.tfvars
+**/*.auto.tfvars
+**/.DS_Store

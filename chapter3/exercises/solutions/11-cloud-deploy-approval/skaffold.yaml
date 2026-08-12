@@ -1,0 +1,11 @@
+# Cloud Deploy が参照する Skaffold 構成。Cloud Run へ raw マニフェスト（run-service.yaml）を
+# デプロイする。イメージはリリース作成時に --images でダイジェストへ差し替える。
+apiVersion: skaffold/v4beta7
+kind: Config
+metadata:
+  name: flowpay-frontend
+manifests:
+  rawYaml:
+    - run-service.yaml
+deploy:
+  cloudrun: {}

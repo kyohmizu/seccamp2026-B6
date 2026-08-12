@@ -1,0 +1,13 @@
+# 拡張: 複数アテスターの必須化。
+# built-by-cloud-build（Cloud Build が自動作成）に加え、セキュリティレビュー用アテスター
+# security-review の attestation も必須にする。requireAttestationsBy は AND 条件のため、
+# 両方の attestation が揃わないとデプロイできない（例: 「CI で正規ビルド」かつ「人手のレビュー承認」）。
+# ※ security-review アテスターは事前に作成しておく必要がある（main.tf 参照）。
+# <PROJECT> は自分のプロジェクトIDに置換する。
+defaultAdmissionRule:
+  evaluationMode: REQUIRE_ATTESTATION
+  enforcementMode: ENFORCED_BLOCK_AND_AUDIT_LOG
+  requireAttestationsBy:
+    - projects/<PROJECT>/attestors/built-by-cloud-build
+    - projects/<PROJECT>/attestors/security-review
+globalPolicyEvaluationMode: ENABLE
