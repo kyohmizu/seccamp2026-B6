@@ -13,7 +13,7 @@
 
 ## 関連
 - 1-1 TanStack（正当な provenance を持つ悪性）。署名 / provenance があっても万能ではないため、多層で重ねます。
-- 2-2「デプロイ・実行時の検証と保護」（信頼を前提にせず、デプロイ時に検証する＝Verify, then Trust）
+- 2-2「デプロイ・実行時の検証と保護」（信頼を前提にせず、デプロイ時に検証する）
 
 ## 課題
 1. ビルド側で provenance 生成を有効化してください。ビルドパイプライン（`pipelines/cloudbuild.yaml`）の `options` に `requestedVerifyOption: VERIFIED` を追加して再ビルドします。これで Cloud Build が `built-by-cloud-build` アテスターを作成し、ビルドしたイメージに attestation を付与します。
