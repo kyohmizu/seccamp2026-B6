@@ -11,7 +11,7 @@
 - `docs/` — ハンズオン環境の構築手順書（運用者・管理者向け）。
 
 ## 環境構築（運用者・管理者向け）
-- ハンズオン環境のプロビジョニングから参加者への配布手順（単一環境を構築する場合は `app_count = 1` に設定）: [docs/provisioning.md](docs/provisioning.md)
+- ハンズオン環境のプロビジョニングと動作検証の手順（単一環境を構築する場合は `app_count = 1` に設定）: [docs/provisioning.md](docs/provisioning.md)
 - 攻撃デモ用演習環境の構築（Compute Engine（GCE）上のプライベート npm レジストリおよび攻撃者用受信サーバー）: [demos/malicious-dependency/gce/](demos/malicious-dependency/gce/)
 
 ## 注意事項

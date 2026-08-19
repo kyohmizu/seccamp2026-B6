@@ -11,7 +11,7 @@
 - `../src/frontend/` — Node.js / Express で構築された Web UI アプリケーション。金額の整形処理は外部 OSS パッケージ `expense-format` に依存しており、演習用のプライベート npm レジストリから取得します。
 - `../src/pipelines/` — Cloud Build のパイプライン定義ファイル（ビルド / PR チェック / デプロイ）。
 
-実際の演習作業では、本 FlowPay 環境から生成された参加者ごとの個別リポジトリを使用して作業を進めます（`backend/`・`frontend/`・`cloudbuild.yaml` がリポジトリ直下に配置された構成となります）。
+実際の演習作業では、本 FlowPay 環境から生成された個別の演習用リポジトリを使用して作業を進めます（`backend/`・`frontend/`・`cloudbuild.yaml` がリポジトリ直下に配置された構成となります）。
 
 ## 演習の進め方
 演習の全体一覧および開始手順については [exercises/README.md](exercises/README.md) を参照してください。

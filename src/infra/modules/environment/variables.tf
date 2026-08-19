@@ -28,5 +28,5 @@ variable "bootstrap_image" {
 variable "members" {
   type        = list(string)
   default     = []
-  description = "frontend を proxy で閲覧できるユーザ/グループ（例: user:you@example.com）。利用者本人をここに入れる。"
+  description = "frontend を proxy で閲覧できるユーザ/グループ（例: user:you@example.com）。演習の実行者をここに入れる。"
 }

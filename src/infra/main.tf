@@ -12,7 +12,7 @@ locals {
       project_id               = var.google_project
       name_prefix              = format("app-%02d", i + 1) # Cloud Run: app-01-frontend / -backend
       repo_id                  = format("app-%02d", i + 1) # Artifact Registry: app-01（_REPO はモジュールが注入）
-      members                  = []                        # 参加者はプロジェクトレベルの権限で invoke 可能なため env 単位の付与は不要
+      members                  = []                        # プロジェクトレベルの権限で invoke 可能なため env 単位の付与は不要
       github_owner             = var.github_owner
       github_repo              = format("seccamp2026-B6-app-%02d", i + 1)
       connection_name          = var.connection_name
@@ -26,7 +26,7 @@ locals {
     }
   }
 
-  # ループ生成分と、個別定義（environments。例: モノレポ用の flowpay）をマージする。キーは衝突しない前提。
+  # ループ生成分と、個別定義（environments。例: flowpay）をマージする。キーは衝突しない前提。
   environments = merge(local.app_envs, var.environments)
 }
 

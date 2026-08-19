@@ -1,4 +1,4 @@
-# 環境ごとの主要な情報（利用者への配布・プロビジョニングスクリプトが利用）。
+# 環境ごとの主要な情報（プロビジョニングスクリプトが利用）。
 output "environments" {
   value = {
     for k, m in module.environment : k => {

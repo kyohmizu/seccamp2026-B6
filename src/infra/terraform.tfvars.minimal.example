@@ -1,0 +1,18 @@
+# ==== 最小構成: GitHub 連携なしで1環境だけ試す ====
+# 使い方: このファイルを terraform.tfvars にコピーし、プロジェクト ID を自分の値に変える。
+#   cp terraform.tfvars.minimal.example terraform.tfvars
+#
+# push/PR による自動ビルド（GitHub 連携）は使わず、ビルド・デプロイは seed-builds.sh
+#（gcloud builds submit）で手動実行する構成。アプリ稼働と手動実行の演習を1環境で試せる。
+# host connection や演習用リポジトリの用意は不要。詳細は docs/provisioning.md の「最小構成」節を参照。
+#
+# GitHub 連携（push/PR の自動ビルド。個人アカウントでも可）や一括構築が必要なら
+# terraform.tfvars.example を使う。
+
+google_project = "your-project-id"
+region         = "asia-northeast1"
+
+app_count = 0
+environments = {
+  app-01 = { project_id = "your-project-id" }
+}

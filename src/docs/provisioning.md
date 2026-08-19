@@ -1,9 +1,9 @@
 # プロビジョニング手順
 
-単一の Google Cloud（GCP）プロジェクト内に、参加者分の演習環境（Cloud Run・Artifact Registry・サービスアカウント等）を Terraform を用いて一括構築し、動作検証を経て参加者へ配布するまでの運用管理手順です。環境数（`app_count`）と GitHub 連携情報（`github_owner` / `connection_name` / `npm_registry`）を指定することで、各参加者のリポジトリ `<github_owner>/seccamp2026-B6-app-NN` に対するビルド・デプロイのトリガーまで含めて全環境を自動生成できます。各環境は連番の識別キーによって分離・管理されます。設計背景の詳細は [../infra/README.md](../infra/README.md) を参照してください。
+単一の Google Cloud（GCP）プロジェクト内に、複数人分の演習環境（Cloud Run・Artifact Registry・サービスアカウント等）を Terraform を用いて一括構築し、動作検証するまでの手順です。環境数（`app_count`）と GitHub 連携情報（`github_owner` / `connection_name` / `npm_registry`）を指定することで、各リポジトリ `<github_owner>/seccamp2026-B6-app-NN` に対するビルド・デプロイのトリガーまで含めて全環境を自動生成できます。各環境は連番の識別キーによって分離・管理されます。設計背景の詳細は [../infra/README.md](../infra/README.md) を参照してください。
 
-> Terraform によるインフラ定義（`infra/`）は運用管理者が実行する環境構築ツールです。参加者は Terraform の直接操作は行わず、用意された初期状態に対して `gcloud` コマンドや設定ファイルの編集を行い、セキュリティの堅牢化を進めます。
-> 参加者アカウントに対する GCP プロジェクトへのアクセス権限付与作業は本手順の対象外です。事前のアカウント準備フェーズにて実施してください。
+> Terraform によるインフラ定義（`infra/`）は運用管理者が実行する環境構築ツールです。演習の中で Terraform の直接操作は行わず、用意された初期状態に対して `gcloud` コマンドや設定ファイルの編集を行い、セキュリティの堅牢化を進めます。
+> 演習用 Google アカウントに対する GCP プロジェクトへのアクセス権限付与作業は本手順の対象外です。事前のアカウント準備フェーズにて実施してください。
 
 補助スクリプト類は [../infra/scripts/](../infra/scripts/) に配置されています。すべてのスクリプト実行は `src/infra` ディレクトリ直下で行います。
 
@@ -13,7 +13,7 @@
 - Terraform のバージョンは mise を用いて `terraform@1.15.7` に固定しています（`infra/mise.toml`）。以降の `terraform` コマンドは `mise exec -- terraform` としても実行可能です。
 - Python3 環境（`terraform output` の実行結果整形処理に使用します）。
 - 演習用 npm レジストリ（Verdaccio）。frontend の依存関係である `expense-format`（公開 npm には存在しない自作 OSS）を供給するためのプライベートレジストリです。ステップ2 にて構築します。本レジストリが存在しない場合、frontend のビルド処理が失敗します。
-- GitHub の host connection（Cloud Build 2nd-gen）。参加者リポジトリへのトリガーを作るために、対象プロジェクトごとに gcloud で1回だけ作成・OAuth 認可しておきます（手順は付録「GitHub トリガーによる自動ビルドパイプラインの構築」を参照）。`app_count` のループはこの接続（`connection_name`）を全 env 共通で使用します。
+- GitHub の host connection（Cloud Build 2nd-gen）。演習用リポジトリへのトリガーを作るために、対象プロジェクトごとに gcloud で1回だけ作成・OAuth 認可しておきます（手順は付録「GitHub トリガーによる自動ビルドパイプラインの構築」を参照）。`app_count` のループはこの接続（`connection_name`）を全 env 共通で使用します。
 
 ## ステップ1: tfvars ファイルの準備
 `terraform.tfvars` に対象プロジェクト ID および生成する環境数を記述します。
@@ -40,15 +40,17 @@ REG=http://<IP>:4873/ src/demos/malicious-dependency/gce/publish.sh good
 ここで取得した URL は ステップ4 における `NPM_REGISTRY` 環境変数として渡します。
 > レジストリ URL（VM の IP アドレス）は環境固有であるため Git リポジトリへはコミットしないでください。VM を再作成すると IP が変更されます。固定の静的 IP アドレスを事前に予約・割り当てておくことで、再作成時も同一の URL を維持できます。
 
-## ステップ2.5: frontend 用ロックファイルの作成（演習リポジトリへのコミット）
-実稼働アプリケーションと同様に `package-lock.json` を作成して Git にコミットします。本ファイルは公開の元リポジトリには含めず（`resolved` フィールドにレジストリの IP アドレスが記録されるため）、演習環境を準備する本工程で生成・コミットを行います。
+## ステップ2.5: 演習用 GitHub リポジトリの作成
+演習は、1人につき1つの独立した GitHub リポジトリ `<github_owner>/seccamp2026-B6-app-NN` 上で行います。Terraform はこのリポジトリへのトリガーを作成しますが、リポジトリ自体は作成しないため、事前に用意します。`make-student-repo.sh` が、アプリ本体・`cloudbuild.yaml` 群・frontend の lockfile（正規バージョン 1.0.0 で固定）をルート直下に生成します。
 ```bash
-( cd src/frontend && npm install --package-lock-only --omit=dev --registry http://<IP>:4873/ )
-# .gitignore から src/frontend/package-lock.json の行を除外してコミット
-git add src/frontend/package-lock.json
-git commit -m "chore: commit frontend lockfile (expense-format 1.0.0)"
+# 環境ごとに繰り返す（例は app-01）。REG は ステップ2 で取得した Verdaccio URL。
+REG=http://<IP>:4873/ scripts/make-student-repo.sh /tmp/app-01
+cd /tmp/app-01
+git init && git add -A && git commit -m "init: FlowPay 演習リポジトリ"
+gh repo create <github_owner>/seccamp2026-B6-app-01 --private --source=. --push
 ```
-> 攻撃デモ演習では、この lockfile に対し `npm update` を実行して悪性バージョンへ更新し、PR を作成するシナリオを実施します（[../demos/malicious-dependency/gce/README.md](../demos/malicious-dependency/gce/README.md)）。
+`app_count = 10` の場合は app-01〜app-10 を、出力先ディレクトリとリポジトリ名を変えて繰り返します。GitHub host connection（前提条件）は、これらのリポジトリへトリガーを張るために事前に作成・OAuth 認可しておきます。
+> 攻撃デモ演習では、生成された lockfile に対し `npm update` を実行して悪性バージョンへ更新し、PR を作成するシナリオを実施します（[../demos/malicious-dependency/gce/README.md](../demos/malicious-dependency/gce/README.md)）。
 
 ## ステップ3: インフラの適用（apply）
 ```bash
@@ -58,7 +60,7 @@ terraform apply
 terraform output environments   # 各環境の URL・AR パス・SA・サービス名等が出力されます
 ```
 各環境（env）ごとに、API の有効化、Artifact Registry、サービスアカウント2個、Cloud Run サービス2基（private 設定）、および IAM ポリシーが自動生成されます。初期状態では Binary Authorization が有効化されていないため、未検証のコンテナイメージもデプロイ可能な非堅牢な状態となります。デプロイ時の検証メカニズムは 演習05 にて有効化します。
-> Binary Authorization ポリシーは GCP プロジェクト単位のシングルトンリソースです。単一プロジェクトを全参加者で共有する構成の場合、演習05 はプロジェクト全体の共通演習として扱われます（参加者単位の独立した制御状態は保持できません）。演習05 の検証完了後は、共有環境のデプロイをブロックし続けないようポリシーを `ALWAYS_ALLOW` へ復元してください。
+> Binary Authorization ポリシーは GCP プロジェクト単位のシングルトンリソースです。単一プロジェクトを複数人で共有する構成の場合、演習05 はプロジェクト全体の共通演習として扱われます（実行者単位の独立した制御状態は保持できません）。演習05 の検証完了後は、共有環境のデプロイをブロックし続けないようポリシーを `ALWAYS_ALLOW` へ復元してください。
 
 ## ステップ4: 初期コンテナイメージの投入（シードビルド）
 `terraform apply` 直後の Cloud Run サービスにはプレースホルダー用の初期イメージが配置されているため、実際のアプリケーションイメージをビルドしてデプロイします。`NPM_REGISTRY` には ステップ2 で取得したレジストリ URL を指定します。
@@ -73,11 +75,19 @@ scripts/smoke-test.sh              # 各環境の frontend UI および frontend
 ```
 すべての環境において `GET / -> 200` および `GET /api/expenses -> 200` の正常応答が返ることを確認します。
 
-## ステップ6: 参加者への配布
-`terraform output -json environments` の出力結果をベースに、各参加者に対して以下の情報を案内・配布します。
-- frontend / backend へのアクセス確認手順（`gcloud run services proxy` コマンドによるアクセス案内。外部インターネットへは公開しません）。
-- 対象 Artifact Registry のリポジトリパス。
-- 演習ハンズオンの案内ドキュメント（[../../chapter3/exercises/README.md](../../chapter3/exercises/README.md)）。
+## 最小構成: GitHub 連携なしで1環境だけ試す
+push/PR による自動ビルド（GitHub 連携）を使わず、アプリケーションの稼働と防御演習を1環境で試す場合は、GitHub 連携（host connection・演習用リポジトリ）を省略できます。本手順との違いは次の2点のみです。
+
+- **ステップ1 の tfvars** は、専用の雛形 `terraform.tfvars.minimal.example` をコピーして作ります（コメントの付け外しは不要です）。
+  ```bash
+  cd src/infra
+  cp terraform.tfvars.minimal.example terraform.tfvars
+  # google_project と environments の project_id を自分のプロジェクト ID に変更する
+  ```
+  `github_owner` / `connection_name` の指定や host connection の作成は不要です。`npm_registry` はステップ4 で `NPM_REGISTRY` 環境変数として渡すため、tfvars への記入は不要です。
+- **ステップ2.5（演習用リポジトリの作成）と付録（GitHub トリガー）は実施しません。** ステップ2・3・4・5 はそのまま実行します。
+
+`seed-builds.sh` は `gcloud builds submit` により手元のコードを直接ビルド・デプロイするため、GitHub 連携なしで動作します。この構成では push を契機とする自動ビルドや PR チェックは行えませんが、アプリケーションの稼働と、手動実行で完結する大半の演習（SCA/SBOM、digest 固定、ビルド用 SA の最小権限化、署名・provenance、Binary Authorization、Policy-as-Code など）を実施できます。
 
 ## リソースのクリーンアップ手順
 Terraform の管理対象リソース（Artifact Registry、サービスアカウント、Cloud Run、IAM、およびトリガー方式の場合はリポジトリ・トリガー）を削除します。
@@ -94,7 +104,7 @@ PROJECT=<GCPプロジェクトID> ZONE=asia-northeast1-b src/demos/malicious-dep
 - **Binary Authorization**: 演習05 で有効化した場合、ポリシー設定はプロジェクト単位の管理であり Terraform 管理外となります。共有プロジェクトの場合はポリシーを `ALWAYS_ALLOW` へ手動復元してください。
 - **GitHub host connection**（トリガー方式採用時）: `gcloud builds connections create` コマンドで作成した接続定義は Terraform 管理外です。完全に削除する場合は `gcloud builds connections delete <接続名> --region <リージョン名>` を実行します。
 - **ローカルの生成物**: 手元環境の `terraform.tfvars`・`src/frontend/.npmrc`・`.terraform/` ディレクトリ・tfstate ファイルを削除します。
-- 有効化した API 群は `destroy` 実行時も無効化されません（`disable_on_destroy = false`）。参加者ごとに別プロジェクトを割り当てる運用の場合、GCP プロジェクトごと削除するのが最も確実に全削除（API・ビルド履歴・ログ等を含む）を行える方法です。
+- 有効化した API 群は `destroy` 実行時も無効化されません（`disable_on_destroy = false`）。実行者ごとに別プロジェクトを割り当てる運用の場合、GCP プロジェクトごと削除するのが最も確実に全削除（API・ビルド履歴・ログ等を含む）を行える方法です。
 
 ## 付録: 発展的な運用設計
 ### GitHub トリガーによる自動ビルドパイプラインの構築
@@ -111,4 +121,14 @@ gcloud builds connections create github flowpay-github --region asia-northeast1
 - 初期状態における deploy トリガーの動作は**検証処理なし**の構成となっています。attestation 検証ステップの追加（パイプライン内チェック）および Binary Authorization によるデプロイ時強制検証については演習コンテンツ内で扱います。
 
 ### 環境ごとに設定を変更する手法（環境明示モード）
-参加者ごとに別プロジェクトを割り当てる構成、参加者ごとに個別リポジトリを割り当てる構成、または個別にアクセス権限を管理する運用を行う場合は、`app_count = 0` と設定した上で `environments` ブロックを `terraform.tfvars` ファイルへ直接記述します。設定記述のフォーマット例は [terraform.tfvars.example](../infra/terraform.tfvars.example) を参照してください。`members` に定義されたアカウントに対しては、frontend の `run.invoker` ロール（proxy 閲覧権限）が自動付与されます。個別プロジェクト構成を採る場合は、各環境定義内の `project_id` を環境ごとに変更します。参加者ごとの個別リポジトリを作成する場合は [make-student-repo.sh](../infra/scripts/make-student-repo.sh) スクリプトを用いてリポジトリ内容を生成します。
+演習実行者ごとに別プロジェクトを割り当てる構成、または個別にアクセス権限を管理する運用を行う場合は、`app_count = 0` と設定した上で `environments` ブロックを `terraform.tfvars` ファイルへ直接記述します。設定記述のフォーマット例は [terraform.tfvars.example](../infra/terraform.tfvars.example) を参照してください。`members` に定義されたアカウントに対しては、frontend の `run.invoker` ロール（proxy 閲覧権限）が自動付与されます。個別プロジェクト構成を採る場合は、各環境定義内の `project_id` を環境ごとに変更します。個別リポジトリを作成する場合は [make-student-repo.sh](../infra/scripts/make-student-repo.sh) スクリプトを用いてリポジトリ内容を生成します（本編ステップ2.5 と同じ）。
+
+### 本リポジトリを使用する構成
+個別リポジトリを作らず、**本リポジトリ（`src/` 配下）をそのまま使用する**構成でも利用できます。その場合、`environments` の env で以下のように設定します。
+
+- `github_repo` を、本リポジトリの名前（例: `seccamp2026-B6`）に指定する（個別リポジトリ `seccamp2026-B6-app-NN` ではなく本リポジトリを対象にする）。
+- `cloudbuild_config` / `pr_cloudbuild_config` / `deploy_cloudbuild_config` は**省略**する（モジュール既定の `src/frontend` パスが使われる）。
+- `connection_name` / `build_sa` / `substitutions` は付録冒頭の GitHub トリガー例と同じ。
+- frontend のロックファイルは `src/frontend/package-lock.json` として生成・コミットする（`cd src/frontend && npm install --package-lock-only --omit=dev --registry http://<IP>:4873/`）。
+
+設定例は [terraform.tfvars.example](../infra/terraform.tfvars.example) を参照してください。

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# src から「利用者ごとの演習用リポジトリ」の中身を生成する。
+# src から「実行者ごとの演習用リポジトリ」の中身を生成する。
 # 生成物はアプリをリポジトリ直下に配置し、cloudbuild.yaml はルート相対（backend / frontend）。
-# これを利用者ごとの GitHub リポジトリに push すると、トリガーの filename は "cloudbuild.yaml" 固定で済む。
+# これを実行者ごとの GitHub リポジトリに push すると、トリガーの filename は "cloudbuild.yaml" 固定で済む。
 #
 # 使い方: REG=http://<IP>:4873/ scripts/make-student-repo.sh <出力先ディレクトリ>
 #   例:   REG=http://<IP>:4873/ scripts/make-student-repo.sh /tmp/seccamp-b6-student01
@@ -65,13 +65,21 @@ pull_request を開くと `cloudbuild.pr.yaml` が検証ジョブとして走り
 - `cloudbuild.deploy.yaml` … デプロイ（イメージ push を契機に Cloud Run へ反映）
 
 演習の手引きは、第3章の演習資料を参照してください。
+
+## ローカルで依存を扱う場合
+frontend の依存 `expense-format` は公開 npm には無く、演習用レジストリ（Verdaccio）から取得します。
+手元で `npm install` などを実行する場合は、`frontend/.npmrc` を作成してレジストリ URL を指定してください
+（CI はビルド時に `_NPM_REGISTRY` から自動生成するため、この手順は不要です）。
+
+    cp frontend/.npmrc.example frontend/.npmrc
+    # frontend/.npmrc の REPLACE_WITH_REGISTRY_IP を演習用レジストリの IP に変更する
 EOF
 
 echo "生成しました: $DEST"
 echo "  backend/ frontend/ cloudbuild.yaml cloudbuild.pr.yaml cloudbuild.deploy.yaml .gitignore .gcloudignore README.md"
 echo
 echo "次の手順:"
-echo "  1) $DEST を利用者ごとの GitHub リポジトリに push（package-lock.json も含める）"
+echo "  1) $DEST を実行者ごとの GitHub リポジトリに push（package-lock.json も含める）"
 echo "  2) terraform.tfvars の各 env（environments）に github_repo と以下を設定:"
 echo "       cloudbuild_config        = \"cloudbuild.yaml\""
 echo "       pr_cloudbuild_config     = \"cloudbuild.pr.yaml\""

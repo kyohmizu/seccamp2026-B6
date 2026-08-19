@@ -51,16 +51,16 @@ variable "environments" {
     project_id  = string
     name_prefix = optional(string) # 未指定ならマップのキーを流用
     repo_id     = optional(string)
-    members     = optional(list(string), []) # frontend を閲覧できる人（利用者本人など）
+    members     = optional(list(string), []) # frontend を閲覧できる人（演習の実行者など）
 
     # --- source-trigger（GitHub＋Cloud Build トリガー）。github_repo を入れた env だけ作られる ---
     github_owner             = optional(string)
     github_repo              = optional(string)
     connection_name          = optional(string)          # gcloud で作成済みの host connection 名
     build_sa                 = optional(string)          # トリガーのビルド実行SA（最小権限SA推奨、フルリソースパス）
-    cloudbuild_config        = optional(string)          # トリガーが実行する cloudbuild 定義のパス。未指定ならモジュール既定（モノレポ用）。利用者ごとの別リポジトリなら "cloudbuild.yaml"
-    pr_cloudbuild_config     = optional(string)          # PRチェック用 cloudbuild 定義のパス。未指定ならモジュール既定（モノレポ用）。利用者ごとの別リポジトリなら "cloudbuild.pr.yaml"
-    deploy_cloudbuild_config = optional(string)          # デプロイ用 cloudbuild 定義のパス。未指定ならモジュール既定（モノレポ用）。利用者ごとの別リポジトリなら "cloudbuild.deploy.yaml"
+    cloudbuild_config        = optional(string)          # トリガーが実行する cloudbuild 定義のパス。未指定ならモジュール既定。実行者ごとの別リポジトリなら "cloudbuild.yaml"
+    pr_cloudbuild_config     = optional(string)          # PRチェック用 cloudbuild 定義のパス。未指定ならモジュール既定。実行者ごとの別リポジトリなら "cloudbuild.pr.yaml"
+    deploy_cloudbuild_config = optional(string)          # デプロイ用 cloudbuild 定義のパス。未指定ならモジュール既定。実行者ごとの別リポジトリなら "cloudbuild.deploy.yaml"
     enable_pr_check          = optional(bool, true)      # pull_request でPRチェックを実行するか
     enable_deploy_trigger    = optional(bool, true)      # イメージ push（Pub/Sub）でデプロイtrigger を実行するか
     substitutions            = optional(map(string), {}) # トリガーに渡す substitution（例: { _NPM_REGISTRY = "http://<IP>:4873/" }）。環境固有値は tfvars で。

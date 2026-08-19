@@ -1,6 +1,6 @@
 # 解答: SCA / SBOM
 
-- [cloudbuild.yaml](./cloudbuild.yaml) — **課題4の組み込み版**。baseline のビルドパイプラインに対して Trivy によるスキャンステップ（SCA / コンテナイメージスキャン / SBOM 生成）を追加した構成です。参加者用リポジトリの `cloudbuild.yaml` を本ファイルの内容に差し替えることで、既存の push トリガー（`<repo>-push`）が自動起動し、**push のたびに自動でスキャン結果が出力**されます。SCA は push 直前、イメージスキャンおよび SBOM 生成は push 直後に配置されています。
+- [cloudbuild.yaml](./cloudbuild.yaml) — **課題4の組み込み版**。baseline のビルドパイプラインに対して Trivy によるスキャンステップ（SCA / コンテナイメージスキャン / SBOM 生成）を追加した構成です。演習用リポジトリの `cloudbuild.yaml` を本ファイルの内容に差し替えることで、既存の push トリガー（`<repo>-push`）が自動起動し、**push のたびに自動でスキャン結果が出力**されます。SCA は push 直前、イメージスキャンおよび SBOM 生成は push 直後に配置されています。
 - [cloudbuild.scan.yaml](./cloudbuild.scan.yaml) — **単体実行用**の参照実装ファイルです。ビルドおよび push 処理は行わず、既存の Artifact Registry（AR）上のコンテナイメージおよびソースコードの検査のみを実行します。`gcloud builds submit` や手動トリガー経由でオンデマンド実行する用途に使用します。
 - [cloudbuild.gate.yaml](./cloudbuild.gate.yaml) — **品質ゲート化版（発展課題）**。CRITICAL 重大度の脆弱性を検出した際に `push` 処理の前にビルドを自動停止させる構成です。コンテナイメージは `docker save` コマンドで tar 化し、`trivy image --input` によって外部公開前に検査・検証します。
 

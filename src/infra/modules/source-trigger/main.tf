@@ -26,7 +26,7 @@ variable "repo_name" {
 variable "cloudbuild_config" {
   type        = string
   default     = null
-  description = "トリガーが実行する cloudbuild 定義のパス。未指定ならモノレポ用の src/pipelines/cloudbuild.trigger.yaml。利用者ごとの別リポジトリなら \"cloudbuild.yaml\"。"
+  description = "トリガーが実行する cloudbuild 定義のパス。未指定なら src/pipelines/cloudbuild.trigger.yaml。実行者ごとの別リポジトリなら \"cloudbuild.yaml\"。"
 }
 variable "branch_pattern" {
   type    = string
@@ -91,7 +91,7 @@ data "google_project" "this" {
 
 locals {
   connection_id = "projects/${var.project_id}/locations/${var.region}/connections/${var.connection_name}"
-  # env が未指定(null)なら既定＝モノレポ用パスにフォールバック
+  # env が未指定(null)なら既定＝src/pipelines のパスにフォールバック
   cloudbuild_config     = coalesce(var.cloudbuild_config, "src/pipelines/cloudbuild.trigger.yaml")
   pr_cloudbuild_config  = coalesce(var.pr_cloudbuild_config, "src/pipelines/cloudbuild.pr.yaml")
   deploy_cloudbuild_cfg = coalesce(var.deploy_cloudbuild_config, "src/pipelines/cloudbuild.deploy.yaml")

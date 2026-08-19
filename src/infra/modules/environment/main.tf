@@ -1,4 +1,4 @@
-# 1 利用者/グループ分の環境（AR ＋ SA ＋ Cloud Run ×2 ＋ IAM）。
+# 1 実行者/グループ分の環境（AR ＋ SA ＋ Cloud Run ×2 ＋ IAM）。
 # 全リソースに project を明示するため、単一プロバイダのまま
 #   ・別プロジェクト方式（env ごとに project_id を変える）
 #   ・共有プロジェクト方式（project_id 共通・name_prefix で分離）
@@ -107,7 +107,7 @@ resource "google_cloud_run_v2_service_iam_member" "frontend_invokes_backend" {
   member   = "serviceAccount:${google_service_account.frontend.email}"
 }
 
-# --- IAM: 管理者/利用者本人が frontend を invoke（proxy で閲覧するため） ---
+# --- IAM: 演習の実行者が frontend を invoke（proxy で閲覧するため） ---
 resource "google_cloud_run_v2_service_iam_member" "admin_invokes_frontend" {
   for_each = toset(var.members)
   project  = var.project_id

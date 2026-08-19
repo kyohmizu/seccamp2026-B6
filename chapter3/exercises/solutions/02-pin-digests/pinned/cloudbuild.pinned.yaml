@@ -1,4 +1,4 @@
-# digest 固定版パイプライン（演習2適用後の参加者リポジトリ cloudbuild.yaml 相当）。
+# digest 固定版パイプライン（演習2適用後の cloudbuild.yaml 相当）。
 # ポイント: step の name（ここでは docker と frontend-deps の node:22-slim）を可変タグではなく digest で固定する。
 # ※ digest は固定時点で自分で解決して貼る（resolve-digests.cloudbuild.yaml 参照）。下記は解決日時点の実値。
 # ※ frontend-deps は演習2時点の baseline どおり npm install（npm ci 化は演習3）。

@@ -63,7 +63,7 @@ gcloud container binauthz policy import /tmp/binauthz-require.yaml --project $PR
   ```
 
 ## 6. 【重要】検証の解除と設定の復元（共有環境への影響防止）
-Binary Authorization ポリシーは Google Cloud プロジェクト単位のシングルトン設定であり全参加者で共有されるため、動作検証の完了後は `ALWAYS_ALLOW` 設定へ復元します。
+Binary Authorization ポリシーは Google Cloud プロジェクト単位のシングルトン設定であり実行者間で共有されるため、動作検証の完了後は `ALWAYS_ALLOW` 設定へ復元します。
 
 ```bash
 cat > /tmp/binauthz-allow.yaml <<'EOF'
